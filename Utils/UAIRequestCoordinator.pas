@@ -261,6 +261,7 @@ var
   LProviderIds: TArray<string>;
   LProviderId: string;
   LThread: TProviderExecutionThread;
+  LProviderSettings: TAIProviderSetting;
   LPayload: TProviderMessagePayload;
 begin
   CancelAll;
@@ -271,12 +272,17 @@ begin
 
   for LProviderId in LProviderIds do
   begin
-    LThread := TProviderExecutionThread.Create(
-      FTargetHandle,
-      LRegistry.GetProvider(LProviderId),
-      BuildRequest(LProviderId, APrompt, AQuestionLabel),
-      TSingletonSettingObj.Instance.GetProviderSetting(LProviderId)
-    );
+    LProviderSettings := TSingletonSettingObj.Instance.GetProviderSetting(LProviderId);
+    try
+      LThread := TProviderExecutionThread.Create(
+        FTargetHandle,
+        LRegistry.GetProvider(LProviderId),
+        BuildRequest(LProviderId, APrompt, AQuestionLabel),
+        LProviderSettings
+      );
+    finally
+      LProviderSettings.Free;
+    end;
     LThread.OnTerminate := ThreadTerminated;
     FThreads.Add(LThread.Request.RequestId, LThread);
     LPayload := TProviderMessagePayload.Create(pmRequestStarted, FCurrentBatchId, LProviderId);
@@ -295,18 +301,24 @@ procedure TAIRequestCoordinator.StartSingleProvider(const AProviderId, APrompt, 
 var
   LThread: TProviderExecutionThread;
   LRegistry: IAIProviderRegistry;
+  LProviderSettings: TAIProviderSetting;
   LPayload: TProviderMessagePayload;
 begin
   CancelAll;
   FCurrentBatchId := NewId;
   FSignalBatchCompleted := ASignalBatchCompleted;
   LRegistry := TAIProviderRegistry.Instance;
-  LThread := TProviderExecutionThread.Create(
-    FTargetHandle,
-    LRegistry.GetProvider(AProviderId),
-    BuildRequest(AProviderId, APrompt, AQuestionLabel),
-    TSingletonSettingObj.Instance.GetProviderSetting(AProviderId)
-  );
+  LProviderSettings := TSingletonSettingObj.Instance.GetProviderSetting(AProviderId);
+  try
+    LThread := TProviderExecutionThread.Create(
+      FTargetHandle,
+      LRegistry.GetProvider(AProviderId),
+      BuildRequest(AProviderId, APrompt, AQuestionLabel),
+      LProviderSettings
+    );
+  finally
+    LProviderSettings.Free;
+  end;
   LThread.OnTerminate := ThreadTerminated;
   FThreads.Add(LThread.Request.RequestId, LThread);
   LPayload := TProviderMessagePayload.Create(pmRequestStarted, FCurrentBatchId, AProviderId);
